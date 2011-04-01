@@ -35,7 +35,8 @@ __all__ = ['fast_gnp_random_graph',
            'random_lobster',
            'random_shell_graph',
            'random_powerlaw_tree',
-           'random_powerlaw_tree_sequence']
+           'random_powerlaw_tree_sequence',
+           'waxman']
 
 
 #-------------------------------------------------------------------------
@@ -911,3 +912,64 @@ def random_powerlaw_tree_sequence(n, gamma=3, seed=None, tries=100):
           "Exceeded max (%d) attempts for a valid tree sequence."%tries)
     return False
 
+def waxman(n,alpha=.0015,beta=0.6):
+    """Return a random graph created according to the waxman model.
+
+    This model proceeds by placing n nodes uniformly at random in
+    the unit square. Each node is then connected to every other with
+    probabilty
+
+             alpha*exp(d_ij/(beta*L))
+
+    where d_ij is the distance between the nodes, alpha and beta
+    are tuning parameters and $L$ is the maximum distance between
+    any two nodes.
+
+    Parameters:
+    -----------
+    n : int
+        Size of graph
+    alpha: numeric
+           Tuning parameter
+    beta: numeric
+          Tuning parameter
+    Returns:
+    --------
+    G: Graph
+    """
+    def euclid_distance(G,i,j):
+        xi = G.node[i]['loc'][0]
+        yi = G.node[i]['loc'][1]
+        xj = G.node[j]['loc'][0]
+        yj = G.node[j]['loc'][1]
+        return ((xi-xj)**2 + (yi-yj)**2)**0.5
+
+    G = nx.Graph()
+    for i in range(n):
+        G.add_node(i)
+        G.node[i]['loc'] = (random.random(),random.random())
+
+    dist = {}
+    L = 0
+    # We do this twice which is slower, but saving n^2 distances
+    # too memory hungry even for moderately big graphs
+    for u in range(n):
+        for v in range(u+1,n):
+            dist = euclid_distance(G,u,v)
+            if dist > L:
+                L = dist
+
+    for u in range(n):
+        for v in range(u+1,n):
+            p_edge = alpha*(math.e**(-euclid_distance(G,u,v)/(beta*L)))
+            if random.random() < p_edge:
+                G.add_edge(u,v)
+
+    cc = nx.connected_components(G)
+
+    for c in range(len(cc)-1):
+        u = random.choice(cc[c])
+        v = random.choice(cc[c+1])
+        G.add_edge(u,v)
+
+    return G
