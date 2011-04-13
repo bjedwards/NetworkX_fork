@@ -10,12 +10,15 @@ complement, subgraph.
 #    BSD license.
 __author__ = """\n""".join(['Aric Hagberg (hagberg@lanl.gov)',
                            'Pieter Swart (swart@lanl.gov)',
-                           'Dan Schult(dschult@colgate.edu)'])
+                           'Dan Schult(dschult@colgate.edu)',
+                           'Ben Edwards(bedwards@cs.unm.edu)'])
 
 __all__ = ['union', 'cartesian_product', 
            'compose', 'complement',
            'disjoint_union', 'intersection', 
-           'difference', 'symmetric_difference']
+           'difference', 'symmetric_difference',
+           'tensor_product','lexicographic product',
+           'strong_product']
 
 import networkx as nx
 from networkx.utils import is_string_like
@@ -294,55 +297,6 @@ def symmetric_difference(G,H,create_using=None ):
             R.add_edge(*e)
     return R
 
-def cartesian_product(G,H,create_using=None):
-    """ Return the Cartesian product of G and H.
-
-    Parameters
-    ----------
-    G,H : graph
-       A NetworkX graph 
-
-    create_using : NetworkX graph
-       Use specified graph for result.  Otherwise a new graph is created
-       with the same type as G.
-
-    Notes
-    -----
-    Only tested with Graph class.  Graph, node, and edge attributes
-    are not copied to the new graph.
-    """
-    if create_using is None:
-        Prod=G.__class__()
-    else:
-        Prod=create_using
-        Prod.clear()
-
-    for v in G:
-        for w in H:
-            Prod.add_node((v,w)) 
-
-    if G.is_multigraph():
-        Prod.add_edges_from( (((v,w1),(v,w2),k,d) 
-                              for w1,w2,k,d 
-                              in H.edges_iter(keys=True,data=True) 
-                              for v in G) )
-        Prod.add_edges_from( (((v1,w),(v2,w),k,d) 
-                              for v1,v2,k,d 
-                              in G.edges_iter(keys=True,data=True) 
-                              for w in H) )
-
-    else:
-        Prod.add_edges_from( (((v,w1),(v,w2),d) 
-                              for w1,w2,d in H.edges_iter(data=True) 
-                              for v in G) )
-        Prod.add_edges_from( (((v1,w),(v2,w),d) 
-                              for v1,v2,d in G.edges_iter(data=True) 
-                              for w in H) )
-
-    Prod.name="Cartesian Product("+G.name+","+H.name+")"
-    return Prod
-
-
 def compose(G,H,create_using=None, name=None):
     """ Return a new graph of G composed with H.
     
@@ -434,5 +388,181 @@ def complement(G,create_using=None,name=None):
                        if n is not n2) )
     return R
 
+def tensor_product(G,H):
+    """ Return the Tensor product of G and H. Sometimes referred to as
+    the Categorical Product. If GH = tensor_product(G,H),
+    ((u_G,u_H),(v_G,v_H)) is an edge in GH if and only if (u_G,v_G) is
+    in G and (u_H,v_H) is in H.
 
+    Parameters
+    ----------
+    G,H: graph
+     A NetworkX Graph
 
+    Notes
+    -----
+    This does not copy node or edge attributes, or MultiGraph edge keys
+    Tested with Graph Class"""
+    if not G.is_directed() == H.is_directed():
+        raise nx.NetworkXError("G and H must be both directed or \
+                                both undirected")
+
+    if G.is_directed():
+        if G.is_multigraph():
+            GH = nx.MultiDiGraph()
+        else:
+            GH = nx.DiGraph()
+    else:
+        if G.is_multigraph():
+            GH = nx.MultiGraph()
+        else:
+            GH = nx.Graph()
+
+    from itertools import product
+    
+    GH.add_nodes_from(product(G.nodes_iter(),H.nodes_iter()))
+    
+    GH.add_edges_from(((u_G,u_H),(v_G,v_H)) for (u_G,v_G) in G.edges_iter()
+                                            for (u_H,v_H) in H.edges_iter())
+    if not GH.is_directed():
+        GH.add_edges_from(((v_G,u_H),(u_G,v_H)) for (u_G,v_G) in G.edges_iter()
+                                                for (u_H,v_H) in H.edges_iter())
+
+    return GH
+
+def cartesian_product(G,H):
+    """ Return the Cartesian product of G and H. If GH =
+    cartesian_product(G,H), ((u_G,u_H),(v_G,v_H)) is an edge in GH if
+    and only if (u_G,v_G) is an edge in G and u_H==v_H or (u_H,v_H) is
+    an edge in H and u_G==v_G.
+
+    Parameters
+    ----------
+    G,H: graph
+     A NetworkX Graph
+
+    Notes
+    -----
+    This does not copy node or edge attributes, or MultiGraph edge keys
+    Tested with Graph Class"""
+    if not G.is_directed() == H.is_directed():
+        raise nx.NetworkXError("G and H must be both directed or \
+                                both undirected")
+
+    if G.is_directed():
+        if G.is_multigraph():
+            GH = nx.MultiDiGraph()
+        else:
+            GH = nx.DiGraph()
+    else:
+        if G.is_multigraph():
+            GH = nx.MultiGraph()
+        else:
+            GH = nx.Graph()
+
+    from itertools import product
+    
+    GH.add_nodes_from(product(G.nodes_iter(),H.nodes_iter()))
+    
+    GH.add_edges_from(((u_G,x),(v_G,x)) for (u_G,v_G) in G.edges_iter()
+                                        for x in H.nodes_iter())
+
+    GH.add_edges_from(((x,u_H),(x,v_H)) for (u_H,v_H) in H.edges_iter()
+                                        for x in G.nodes_iter())
+
+    return GH
+
+def lexicographic_product(G,H):
+    """ Return the lexicographic product of G and H. If GH =
+    lexicographic_product(G,H), ((u_G,u_H),(v_G,v_H)) is an edge in GH
+    if and only if (u_G,v_G) is in G or u_G==v_G and (u_H,v_H) is an
+    edge in H.
+
+    Parameters
+    ----------
+    G,H: graph
+     A NetworkX Graph
+
+    Notes
+    -----
+    This does not copy node or edge attributes, or MultiGraph edge keys
+    Tested with Graph Class"""
+
+    if not G.is_directed() == H.is_directed():
+        raise nx.NetworkXError("G and H must be both directed or \
+                                both undirected")
+
+    if G.is_directed():
+        if G.is_multigraph():
+            GH = nx.MultiDiGraph()
+        else:
+            GH = nx.DiGraph()
+    else:
+        if G.is_multigraph():
+            GH = nx.MultiGraph()
+        else:
+            GH = nx.Graph()
+
+    from itertools import product
+    
+    GH.add_nodes_from(product(G.nodes_iter(),H.nodes_iter()))
+    
+    # Edges in G regardless of H designation
+    GH.add_edges_from(((u_G,u_H),(v_G,v_H)) for (u_G,v_G) in G.edges_iter()
+                                            for u_H in H.nodes_iter()
+                                            for v_H in H.nodes_iter())
+                
+    # For each x in G, only if there is an edge in H
+    GH.add_edges_from(((x,u_H),(x,v_H)) for x in G.nodes_iter()
+                                        for (u_H,v_H) in H.edges_iter())
+    
+    return GH
+
+def strong_product(G,H):
+    """ Return the strong product of G and H. If GH =
+    strong_product(G,H), ((u_G,u_H),(v_G,v_H)) is an edge in GH if and
+    only if ((u_G,v_G) is in G and u_H==v_H) or (u_G==v_G and
+    (u_H,v_H) is an edge in H) or ((u_G,v_G) is an edge in G and
+    (u_H,v_H) is an edge in H).
+
+    Parameters
+    ----------
+    G,H: graph
+     A NetworkX Graph
+
+    Notes
+    -----
+    This does not copy node or edge attributes, or MultiGraph edge keys
+    Tested with Graph Class"""
+    
+    if not G.is_directed() == H.is_directed():
+        raise nx.NetworkXError("G and H must be both directed or \
+                                both undirected")
+
+    if G.is_directed():
+        if G.is_multigraph():
+            GH = nx.MultiDiGraph()
+        else:
+            GH = nx.DiGraph()
+    else:
+        if G.is_multigraph():
+            GH = nx.MultiGraph()
+        else:
+            GH = nx.Graph()
+
+    from itertools import product
+    
+    GH.add_nodes_from(product(G.nodes_iter(),H.nodes_iter()))
+
+    GH.add_edges_from(((x,u_H),(x,v_H)) for x in G.nodes_iter()
+                                        for (u_H,v_H) in H.edges_iter())
+
+    GH.add_edges_from(((u_G,x),(v_G,x)) for x in H.nodes_iter()
+                                        for (u_G,v_G) in G.edges_iter())
+    
+    GH.add_edges_from(((u_G,u_H),(v_G,v_H)) for (u_G,v_G) in G.edges_iter()
+                                            for (u_H,v_H) in H.edges_iter())
+    if not GH.is_directed():
+        GH.add_edges_from(((v_G,u_H),(u_G,v_H)) for (u_G,v_G) in G.edges_iter()
+                                                for (u_H,v_H) in H.edges_iter())
+    return GH
