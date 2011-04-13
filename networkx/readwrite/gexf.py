@@ -35,8 +35,8 @@ except ImportError:
 def write_gexf(G, path, encoding='utf-8',prettyprint=True,version='1.1draft'):
     """Write G in GEXF format to path.
 
-    "GEXF (Graph Exchange XML Format) is a language for describing
-    complex networks structures, their associated data and dynamics" [1]_.
+    'GEXF (Graph Exchange XML Format) is a language for describing
+    complex networks structures, their associated data and dynamics' [1]_.
 
     Parameters
     ----------
@@ -75,10 +75,10 @@ def write_gexf(G, path, encoding='utf-8',prettyprint=True,version='1.1draft'):
     writer.write(fh)
 
 def generate_gexf(G, encoding='utf-8',prettyprint=True,version='1.1draft'):
-    """Generate lines of GEXF format representation of G"
+    """Generate lines of GEXF format representation of G
 
-    "GEXF (Graph Exchange XML Format) is a language for describing
-    complex networks structures, their associated data and dynamics" [1]_.
+    'GEXF (Graph Exchange XML Format) is a language for describing
+    complex networks structures, their associated data and dynamics' [1]_.
 
     Parameters
     ----------
@@ -120,8 +120,8 @@ def generate_gexf(G, encoding='utf-8',prettyprint=True,version='1.1draft'):
 def read_gexf(path,node_type=str,relabel=False,version='1.1draft'):
     """Read graph in GEXF format from path.
 
-    "GEXF (Graph Exchange XML Format) is a language for describing
-    complex networks structures, their associated data and dynamics" [1]_.
+    'GEXF (Graph Exchange XML Format) is a language for describing
+    complex networks structures, their associated data and dynamics' [1]_.
 
     Parameters
     ----------
@@ -300,6 +300,10 @@ class GEXFWriter(GEXF):
             pid=node_data.pop('pid',False)
             if pid:
                 kw['pid']=pid
+            if 'start' in node_data:
+                kw['start']=make_str(node_data.pop('start'))
+            if 'end' in node_data:
+                kw['end']=make_str(node_data.pop('end'))
                 
             # add node element with attributes                
             node_element = Element("node", **kw)
@@ -346,6 +350,10 @@ class GEXFWriter(GEXF):
             edge_type=edge_data.pop('type',False)                
             if edge_type:
                 kw['type']=make_str(edge_type)
+            if 'start' in edge_data:
+                kw['start']=make_str(edge_data.pop('start'))
+            if 'end' in edge_data:
+                kw['end']=make_str(edge_data.pop('end'))
             edge_element = Element("edge",
                                    source=make_str(u),target=make_str(v), 
                                    **kw)
