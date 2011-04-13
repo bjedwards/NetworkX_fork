@@ -44,7 +44,7 @@ __all__ = ['fast_gnp_random_graph',
 #-------------------------------------------------------------------------
 
 
-def fast_gnp_random_graph(n, p, seed=None):
+def fast_gnp_random_graph(n, p, seed=None, directed=False):
     """Return a random graph G_{n,p} (Erdős-Rényi graph, binomial graph).
 
     Parameters
@@ -55,6 +55,8 @@ def fast_gnp_random_graph(n, p, seed=None):
         Probability for edge creation.
     seed : int, optional
         Seed for random number generator (default=None). 
+    directed : bool, optional (default=False)
+        If True return a directed graph 
       
     Notes
     -----
@@ -73,30 +75,42 @@ def fast_gnp_random_graph(n, p, seed=None):
 
     References
     ----------
-    .. [1] Batagelj and Brandes, "Efficient generation of large random networks",
+    .. [1] Vladimir Batagelj and Ulrik Brandes, 
+       "Efficient generation of large random networks",
        Phys. Rev. E, 71, 036113, 2005.
     """
-    G=empty_graph(n)
+    G = empty_graph(n)
     G.name="fast_gnp_random_graph(%s,%s)"%(n,p)
 
     if not seed is None:
         random.seed(seed)
 
-    if p<=0 or p>=1:
+    if p <= 0 or p >= 1:
         return nx.gnp_random_graph(n,p)
 
-    v=1  # Nodes in graph are from 0,n-1 (this is the second node index).
-    w=-1
-    lp=math.log(1.0-p)  
+    v = 1  # Nodes in graph are from 0,n-1 (this is the second node index).
+    w = -1
+    lp = math.log(1.0 - p)  
 
-    while v<n:
-        lr=math.log(1.0-random.random())
-        w=w+1+int(lr/lp)
-        while w>=v and v<n:
-            w=w-v
-            v=v+1
-        if v<n:
-            G.add_edge(v,w)
+    if directed:
+        G=nx.DiGraph(G)
+        while v < n:
+            lr = math.log(1.0 - random.random())
+            w = w + 1 + int(lr/lp)
+            while  w>= n and v < n:
+                w = w - n
+                v = v + 1
+            if v < n:
+                G.add_edge(v, w)
+    else:
+        while v < n:
+            lr = math.log(1.0 - random.random())
+            w = w + 1 + int(lr/lp)
+            while w >= v and v < n:
+                w = w - v
+                v = v + 1
+            if v < n:
+                G.add_edge(v, w)
     return G
 
 

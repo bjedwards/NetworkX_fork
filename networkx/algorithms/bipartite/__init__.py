@@ -28,7 +28,7 @@ You can find the bipartite node sets using
 
 >>> X,Y=nx.bipartite_sets(B)
 >>> print(list(X))
-['a','c','b']
+['a', 'c', 'b']
 >>> print(list(Y))
 [1, 2, 3]
 
@@ -36,6 +36,7 @@ You can find the bipartite node sets using
 from networkx.algorithms.bipartite.basic import *
 from networkx.algorithms.bipartite.clustering import *
 from networkx.algorithms.bipartite.projection import *
+from networkx.algorithms.bipartite.redundancy import *
 from networkx.algorithms.bipartite.spectral import *
 
 

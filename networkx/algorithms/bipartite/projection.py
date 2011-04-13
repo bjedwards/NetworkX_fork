@@ -30,7 +30,8 @@ def projected_graph(B, nodes, multigraph=False):
 
     multigraph: bool (default=False)
        If True return a multigraph where the multiple edges represent multiple
-       shared neighbors.
+       shared neighbors.  They edge key in the multigraph is assigned to the
+       label of the neighbor.
 
     Returns
     -------
@@ -46,6 +47,16 @@ def projected_graph(B, nodes, multigraph=False):
     >>> print(G.edges())
     [(1, 3)]
     
+    If nodes 'a', and 'b' are connected through both nodes 1 and 2 then
+    building a multigraph results in two edges in the projection onto
+    ['a','b']:
+
+    >>> B = nx.Graph()
+    >>> B.add_edges_from([('a', 1), ('b', 1), ('a', 2), ('b', 2)])
+    >>> G = nx.projected_graph(B, ['a', 'b'], multigraph=True)
+    >>> print(G.edges(keys=True))
+    [('a', 'b', 1), ('a', 'b', 2)]
+
     Notes
     ------
     No attempt is made to verify that the input graph B is bipartite.
@@ -56,6 +67,8 @@ def projected_graph(B, nodes, multigraph=False):
     Directed graphs are allowed as input.  The output will also then
     be a directed graph with edges if there is a directed path between
     the nodes.
+
+    The graph and node properties are (shallow) copied to the projected graph.
 
     See Also
     --------
@@ -76,16 +89,19 @@ def projected_graph(B, nodes, multigraph=False):
             G=nx.MultiGraph()
         else:
             G=nx.Graph()
-    G.add_nodes_from(nodes)
+    G.graph.update(B.graph)
+    G.add_nodes_from((n,B.node[n]) for n in nodes)
     for u in nodes:
         nbrs2=set((v for nbr in B[u] for v in B[nbr])) -set([u])
         if multigraph:
             for n in nbrs2:
                 if directed:
-                    nparallel=len(set(B[u]) & set(B.pred[n]))
+                    links=set(B[u]) & set(B.pred[n])
                 else:
-                    nparallel=len(set(B[u]) & set(B[n]))/2
-                G.add_edges_from([(u,n)]*int(nparallel))
+                    links=set(B[u]) & set(B[n])
+                for l in links:
+                    if not G.has_edge(u,n,l):
+                        G.add_edge(u,n,key=l)
         else:
             G.add_edges_from((u,n) for n in nbrs2)
     return G
@@ -128,6 +144,8 @@ def weighted_projected_graph(B, nodes, collaboration=False):
     ------
     No attempt is made to verify that the input graph B is bipartite.
 
+    The graph and node properties are (shallow) copied to the projected graph.
+
     See Also
     --------
     is_bipartite, is_bipartite_node_set, bipartite_sets, projected_graph 
@@ -146,7 +164,8 @@ def weighted_projected_graph(B, nodes, collaboration=False):
     else:
         pred=B.adj
         G=nx.Graph()
-    G.add_nodes_from(nodes)
+    G.graph.update(B.graph)
+    G.add_nodes_from((n,B.node[n]) for n in nodes)
     for u in nodes:
         nbrs2=set((v for nbr in B[u] for v in B[nbr])) -set([u])
         for n in nbrs2:
@@ -179,15 +198,6 @@ def project(B, nodes, create_using=None):
     Graph : NetworkX graph 
        A graph that is the projection onto the given nodes.
 
-    Examples
-    --------
-    >>> B = nx.path_graph(4)
-    >>> G = nx.project(B, [1,3]) 
-    >>> print(G.nodes())
-    [1, 3]
-    >>> print(G.edges())
-    [(1, 3)]
-    
     Notes
     ------
     Returns a graph that is the projection of the bipartite graph B
@@ -198,6 +208,9 @@ def project(B, nodes, create_using=None):
     --------
     is_bipartite, is_bipartite_node_set, bipartite_sets, 
     """
+    import warnings
+    warnings.warn('project() function is deprecated in networkx-1.5 '
+                  'use projected_graph()') 
     if create_using is None:
         create_using = nx.Graph()
 

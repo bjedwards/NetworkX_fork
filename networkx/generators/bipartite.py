@@ -3,25 +3,29 @@
 Generators and functions for bipartite graphs.
 
 """
-#    Copyright (C) 2006-2008 by 
+#    Copyright (C) 2006-2011 by 
 #    Aric Hagberg <hagberg@lanl.gov>
 #    Dan Schult <dschult@colgate.edu>
 #    Pieter Swart <swart@lanl.gov>
 #    All rights reserved.
 #    BSD license.
-__author__ = """Aric Hagberg (hagberg@lanl.gov)\nPieter Swart (swart@lanl.gov)\nDan Schult (dschult@colgate.edu)"""
- 
+import math
+import random
+import networkx 
+from functools import reduce
+import networkx as nx
+__author__ = """\n""".join(['Aric Hagberg (hagberg@lanl.gov)',
+                            'Pieter Swart (swart@lanl.gov)',
+                            'Dan Schult(dschult@colgate.edu)'])
 __all__=['bipartite_configuration_model',
          'bipartite_havel_hakimi_graph',
          'bipartite_reverse_havel_hakimi_graph',
          'bipartite_alternating_havel_hakimi_graph',
          'bipartite_preferential_attachment_graph',
          'bipartite_random_regular_graph',
+         'bipartite_random_graph',
          ]
 
-import random
-import networkx 
-from functools import reduce
 
 def bipartite_configuration_model(aseq, bseq, create_using=None, seed=None):
     """Return a random bipartite graph from two given degree sequences.
@@ -47,6 +51,9 @@ def bipartite_configuration_model(aseq, bseq, create_using=None, seed=None):
     If no graph type is specified use MultiGraph with parallel edges.
     If you want a graph with no parallel edges use create_using=Graph()
     but then the resulting degree sequences might not be exact.
+
+    The nodes are assigned the attribute 'bipartite' with the value 0 or 1
+    to indicate which bipartite set the node belongs to.
     """
     if create_using is None:
         create_using=networkx.MultiGraph()
@@ -71,8 +78,8 @@ def bipartite_configuration_model(aseq, bseq, create_using=None, seed=None):
               'invalid degree sequences, sum(aseq)!=sum(bseq),%s,%s'\
               %(suma,sumb))
 
-    G.add_nodes_from(range(0,lena+lenb))
-
+    G=_add_nodes_with_bipartite_label(G,lena,lenb)
+                       
     if max(aseq)==0: return G  # done if no edges
 
     # build lists of degree-repeated vertex numbers
@@ -97,7 +104,12 @@ def bipartite_configuration_model(aseq, bseq, create_using=None, seed=None):
 
 
 def bipartite_havel_hakimi_graph(aseq, bseq, create_using=None):
-    """Return a bipartite graph from two given degree sequences using a Havel-Hakimi style construction.
+    """Return a bipartite graph from two given degree sequences using a 
+    Havel-Hakimi style construction.
+
+    Nodes from the set A are connected to nodes in the set B by
+    connecting the highest degree nodes in set A to the highest degree
+    nodes in set B until all stubs are connected.
 
     Parameters
     ----------
@@ -108,16 +120,15 @@ def bipartite_havel_hakimi_graph(aseq, bseq, create_using=None):
     create_using : NetworkX graph instance, optional
        Return graph of this type.
 
-    Nodes from the set A are connected to nodes in the set B by
-    connecting the highest degree nodes in set A to
-    the highest degree nodes in set B until all stubs are connected.
-
     Notes
     -----
     The sum of the two sequences must be equal: sum(aseq)=sum(bseq)
     If no graph type is specified use MultiGraph with parallel edges.
     If you want a graph with no parallel edges use create_using=Graph()
     but then the resulting degree sequences might not be exact.
+
+    The nodes are assigned the attribute 'bipartite' with the value 0 or 1
+    to indicate which bipartite set the node belongs to.
     """
     if create_using is None:
         create_using=networkx.MultiGraph()
@@ -139,8 +150,7 @@ def bipartite_havel_hakimi_graph(aseq, bseq, create_using=None):
               'invalid degree sequences, sum(aseq)!=sum(bseq),%s,%s'\
               %(suma,sumb))
 
-    G.add_nodes_from(range(0,naseq)) # one vertex type (a)
-    G.add_nodes_from(range(naseq,naseq+nbseq)) # the other type (b)
+    G=_add_nodes_with_bipartite_label(G,naseq,nbseq)
 
     if max(aseq)==0: return G  # done if no edges
 
@@ -164,7 +174,12 @@ def bipartite_havel_hakimi_graph(aseq, bseq, create_using=None):
     return G
 
 def bipartite_reverse_havel_hakimi_graph(aseq, bseq, create_using=None):
-    """Return a bipartite graph from two given degree sequences using a Havel-Hakimi style construction.
+    """Return a bipartite graph from two given degree sequences using a
+    Havel-Hakimi style construction.
+
+    Nodes from set A are connected to nodes in the set B by connecting
+    the highest degree nodes in set A to the lowest degree nodes in
+    set B until all stubs are connected.
 
     Parameters
     ----------
@@ -175,9 +190,6 @@ def bipartite_reverse_havel_hakimi_graph(aseq, bseq, create_using=None):
     create_using : NetworkX graph instance, optional
        Return graph of this type.
 
-    Nodes from the set A are connected to nodes in the set B by
-    connecting the highest degree nodes in set A to
-    the lowest degree nodes in set B until all stubs are connected.
 
     Notes
     -----
@@ -185,6 +197,9 @@ def bipartite_reverse_havel_hakimi_graph(aseq, bseq, create_using=None):
     If no graph type is specified use MultiGraph with parallel edges.
     If you want a graph with no parallel edges use create_using=Graph()
     but then the resulting degree sequences might not be exact.
+
+    The nodes are assigned the attribute 'bipartite' with the value 0 or 1
+    to indicate which bipartite set the node belongs to.
     """
     if create_using is None:
         create_using=networkx.MultiGraph()
@@ -206,8 +221,7 @@ def bipartite_reverse_havel_hakimi_graph(aseq, bseq, create_using=None):
               'invalid degree sequences, sum(aseq)!=sum(bseq),%s,%s'\
               %(suma,sumb))
 
-    G.add_nodes_from(range(0,lena+lenb))
-    
+    G=_add_nodes_with_bipartite_label(G,lena,lenb)
 
     if max(aseq)==0: return G  # done if no edges
 
@@ -232,7 +246,13 @@ def bipartite_reverse_havel_hakimi_graph(aseq, bseq, create_using=None):
 
 
 def bipartite_alternating_havel_hakimi_graph(aseq, bseq,create_using=None):
-    """Return a bipartite graph from two given degree sequences using a alternating Havel-Hakimi style construction.
+    """Return a bipartite graph from two given degree sequences using 
+    an alternating Havel-Hakimi style construction.
+
+    Nodes from the set A are connected to nodes in the set B by
+    connecting the highest degree nodes in set A to alternatively the
+    highest and the lowest degree nodes in set B until all stubs are
+    connected.
 
     Parameters
     ----------
@@ -243,10 +263,6 @@ def bipartite_alternating_havel_hakimi_graph(aseq, bseq,create_using=None):
     create_using : NetworkX graph instance, optional
        Return graph of this type.
 
-    Nodes from the set A are connected to nodes in the set B by
-    connecting the highest degree nodes in set A to
-    alternatively the highest and the lowest degree nodes in set
-    B until all stubs are connected.
 
     Notes
     -----
@@ -254,6 +270,9 @@ def bipartite_alternating_havel_hakimi_graph(aseq, bseq,create_using=None):
     If no graph type is specified use MultiGraph with parallel edges.
     If you want a graph with no parallel edges use create_using=Graph()
     but then the resulting degree sequences might not be exact.
+
+    The nodes are assigned the attribute 'bipartite' with the value 0 or 1
+    to indicate which bipartite set the node belongs to.
     """
     if create_using is None:
         create_using=networkx.MultiGraph()
@@ -274,8 +293,7 @@ def bipartite_alternating_havel_hakimi_graph(aseq, bseq,create_using=None):
               'invalid degree sequences, sum(aseq)!=sum(bseq),%s,%s'\
               %(suma,sumb))
 
-    G.add_nodes_from(range(0,naseq)) # one vertex type (a)
-    G.add_nodes_from(range(naseq,naseq+nbseq)) # the other type (b)
+    G=_add_nodes_with_bipartite_label(G,naseq,nbseq)
 
     if max(aseq)==0: return G  # done if no edges
     # build list of degree-repeated vertex numbers
@@ -302,7 +320,8 @@ def bipartite_alternating_havel_hakimi_graph(aseq, bseq,create_using=None):
     return G
 
 def bipartite_preferential_attachment_graph(aseq,p,create_using=None,seed=None):
-    """Create a bipartite graph with a preferential attachment model from a given single degree sequence.
+    """Create a bipartite graph with a preferential attachment model from 
+    a given single degree sequence.
 
     Parameters
     ----------
@@ -315,23 +334,12 @@ def bipartite_preferential_attachment_graph(aseq,p,create_using=None,seed=None):
     seed : integer, optional
        Seed for random number generator. 
 
-    Notes
-    -----
-
-     @article{guillaume-2004-bipartite,
-       author = {Jean-Loup Guillaume and Matthieu Latapy},
-       title = {Bipartite structure of all complex networks},
-       journal = {Inf. Process. Lett.},
-       volume = {90},
-       number = {5},
-       year = {2004},
-       issn = {0020-0190},
-       pages = {215--221},
-       doi = {http://dx.doi.org/10.1016/j.ipl.2004.03.007},
-       publisher = {Elsevier North-Holland, Inc.},
-       address = {Amsterdam, The Netherlands, The Netherlands},
-       }
-
+    References
+    ----------
+    .. [1] Jean-Loup Guillaume and Matthieu Latapy,
+       Bipartite structure of all complex networks,
+       Inf. Process. Lett. 90, 2004, pg. 215-221
+       http://dx.doi.org/10.1016/j.ipl.2004.03.007
     """
     if create_using is None:
         create_using=networkx.MultiGraph()
@@ -348,7 +356,7 @@ def bipartite_preferential_attachment_graph(aseq,p,create_using=None,seed=None):
         random.seed(seed)    
 
     naseq=len(aseq)
-    G.add_nodes_from(range(0,naseq))
+    G=_add_nodes_with_bipartite_label(G,naseq,0)
     vv=[ [v]*aseq[v] for v in range(0,naseq)]
     while vv:
         while vv[0]:
@@ -356,6 +364,7 @@ def bipartite_preferential_attachment_graph(aseq,p,create_using=None,seed=None):
             vv[0].remove(source)
             if random.random() < p or G.number_of_nodes() == naseq:
                 target=G.number_of_nodes()
+                G.add_node(target,bipartite=1)
                 G.add_edge(source,target)
             else:
                 bb=[ [b]*G.degree(b) for b in range(naseq,G.number_of_nodes())]
@@ -363,6 +372,7 @@ def bipartite_preferential_attachment_graph(aseq,p,create_using=None,seed=None):
                 bbstubs=reduce(lambda x,y: x+y, bb) 
                 # choose preferentially a bottom node.
                 target=random.choice(bbstubs) 
+                G.add_node(target,bipartite=1)
                 G.add_edge(source,target)
         vv.remove(vv[0])
     G.name="bipartite_preferential_attachment_model"
@@ -370,7 +380,7 @@ def bipartite_preferential_attachment_graph(aseq,p,create_using=None,seed=None):
 
 
 def bipartite_random_regular_graph(d, n, create_using=None,seed=None):
-    """UNTESTED: Generate a random bipartite graph.
+    """Experimental: Generate a random regular bipartite graph.
 
     Parameters
     ----------
@@ -385,6 +395,8 @@ def bipartite_random_regular_graph(d, n, create_using=None,seed=None):
 
     Notes
     ------
+    This is an untested, unproved algorithm.
+
     Nodes are numbered 0...n-1. 
 
     Restrictions on n and d:
@@ -392,7 +404,6 @@ def bipartite_random_regular_graph(d, n, create_using=None,seed=None):
        -  n>=2*d
 
     Algorithm inspired by random_regular_graph()
-
     """
     # This algorithm could be improved - see random_regular_graph()
     # helper subroutine to check for suitable edges
@@ -428,10 +439,8 @@ def bipartite_random_regular_graph(d, n, create_using=None,seed=None):
         random.seed(seed)    
 
     G=networkx.empty_graph(0,create_using)
-
+    G=_add_nodes_with_bipartite_label(G,n/2,n/2)
     nodes=range(0,n)
-    G.add_nodes_from(nodes)
-
     seen_edges={} 
     [seen_edges.setdefault(v,{}) for v in nodes]
 
@@ -456,3 +465,92 @@ def bipartite_random_regular_graph(d, n, create_using=None,seed=None):
                return False
     return G
 
+
+def bipartite_random_graph(n, m, p, seed=None, directed=False):
+    """Return a bipartite random graph.
+
+    This is a bipartite version of the binomial (Erdős-Rényi) graph.
+
+    Parameters
+    ----------
+    n : int
+        The number of nodes in the first bipartite set.
+    m : int
+        The number of nodes in the second bipartite set.
+    p : float
+        Probability for edge creation.
+    seed : int, optional
+        Seed for random number generator (default=None). 
+    directed : bool, optional (default=False)
+        If True return a directed graph 
+      
+    Notes
+    -----
+    The bipartite random graph algorithm chooses each of the n*m (undirected) 
+    or 2*nm (directed) possible edges with probability p.
+
+    This algorithm is O(n+m) where m is the expected number of edges.
+    
+    The nodes are assigned the attribute 'bipartite' with the value 0 or 1
+    to indicate which bipartite set the node belongs to.
+
+    See Also
+    --------
+    gnp_random_graph, bipartite_configuration_model
+
+    References
+    ----------
+    .. [1] Vladimir Batagelj and Ulrik Brandes, 
+       "Efficient generation of large random networks",
+       Phys. Rev. E, 71, 036113, 2005.
+    """
+    G=nx.Graph()
+    G=_add_nodes_with_bipartite_label(G,n,m)
+    if directed:
+        G=nx.DiGraph(G)
+    G.name="fast_gnp_random_graph(%s,%s,%s)"%(n,m,p)
+
+    if not seed is None:
+        random.seed(seed)
+
+    if p <= 0:
+        return G
+    if p >= 1:
+        return nx.complete_bipartite_graph(n,m)
+        
+    lp = math.log(1.0 - p)  
+
+    v = 0 
+    w = -1
+    while v < n:
+        lr = math.log(1.0 - random.random())
+        w = w + 1 + int(lr/lp)
+        while w >= m and v < n:
+            w = w - m
+            v = v + 1
+        if v < n:
+            G.add_edge(v, n+w)
+
+    if directed:
+        # use the same algorithm to 
+        # add edges from the "m" to "n" set
+        v = 0 
+        w = -1
+        while v < n:
+            lr = math.log(1.0 - random.random())
+            w = w + 1 + int(lr/lp)
+            while  w>= m and v < n:
+                w = w - m
+                v = v + 1
+            if v < n:
+                G.add_edge(n+w, v)
+
+    return G
+
+
+def _add_nodes_with_bipartite_label(G, lena, lenb):
+    G.add_nodes_from(range(0,lena+lenb))
+    b=dict(zip(range(0,lena),[0]*lena))
+    b.update(dict(zip(range(lena,lena+lenb),[1]*lenb)))
+    nx.set_node_attributes(G,'bipartite',b)
+    return G

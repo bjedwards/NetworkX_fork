@@ -41,19 +41,16 @@ __author__ = """\n""".join(['Aric Hagberg (hagberg@lanl.gov)',
 #    All rights reserved.
 #    BSD license.
 
+import warnings
+import networkx as nx
 
 __all__ = ['to_networkx_graph','from_whatever', 
-           'convert_node_labels_to_integers', 'relabel_nodes',
            'from_dict_of_dicts', 'to_dict_of_dicts',
            'from_dict_of_lists', 'to_dict_of_lists',
            'from_edgelist', 'to_edgelist',
            'from_numpy_matrix', 'to_numpy_matrix',
            'to_numpy_recarray',
            'from_scipy_sparse_matrix', 'to_scipy_sparse_matrix']
-
-import warnings
-import networkx as nx
-
 
 def _prep_create_using(create_using):
     """Return a graph object ready to be populated.
@@ -210,151 +207,6 @@ def convert_to_directed(G):
     """
     return G.to_directed()
 
-
-def relabel_nodes(G,mapping):
-    """Return a copy of G with node labels transformed by mapping.
-
-    Parameters
-    ----------
-    G : graph
-       A NetworkX graph 
-
-    mapping : dictionary or function
-       Either a dictionary with the old labels as keys and new labels as values
-       or a function transforming an old label with a new label.
-       In either case, the new labels must be hashable Python objects.
-
-    Examples
-    --------
-    mapping as dictionary
-
-    >>> G=nx.path_graph(3)  # nodes 0-1-2
-    >>> mapping={0:'a',1:'b',2:'c'}
-    >>> H=nx.relabel_nodes(G,mapping)
-    >>> print(H.nodes())
-    ['a', 'c', 'b']
-
-    >>> G=nx.path_graph(26) # nodes 0..25
-    >>> mapping=dict(zip(G.nodes(),"abcdefghijklmnopqrstuvwxyz"))
-    >>> H=nx.relabel_nodes(G,mapping) # nodes a..z
-    >>> mapping=dict(zip(G.nodes(),range(1,27)))
-    >>> G1=nx.relabel_nodes(G,mapping) # nodes 1..26
-
-    mapping as function
-
-    >>> G=nx.path_graph(3)
-    >>> def mapping(x):
-    ...    return x**2
-    >>> H=nx.relabel_nodes(G,mapping)
-    >>> print(H.nodes())
-    [0, 1, 4]
-
-    See Also
-    --------
-    convert_node_labels_to_integers()
-
-    """
-    H=G.__class__()
-    H.name="(%s)" % G.name
-
-    if hasattr(mapping,"__getitem__"):   # if we are a dict
-        map_func=mapping.__getitem__   # call as a function
-    else:
-        map_func=mapping
-
-    for node in G:
-        try:
-            H.add_node(map_func(node))
-        except:
-            raise nx.NetworkXError(\
-                "relabeling function cannot be applied to node %s" % node)
-
-    #for n1,n2,d in G.edges_iter(data=True):
-    #    u=map_func(n1)
-    #    v=map_func(n2)
-    #    H.add_edge(u,v,d)
-    if G.is_multigraph():
-        H.add_edges_from( (map_func(n1),map_func(n2),k,d.copy()) 
-                          for (n1,n2,k,d) in G.edges_iter(keys=True,data=True)) 
-    else:
-        H.add_edges_from( (map_func(n1),map_func(n2),d.copy()) 
-                          for (n1,n2,d) in G.edges_iter(data=True)) 
-
-    H.node.update(dict((map_func(n),d.copy()) for n,d in G.node.items()))
-    H.graph.update(G.graph.copy())
-
-    return H        
-    
-
-def convert_node_labels_to_integers(G,first_label=0,
-                                    ordering="default",
-                                    discard_old_labels=True):
-    """ Return a copy of G node labels replaced with integers.
-
-    Parameters
-    ----------
-    G : graph
-       A NetworkX graph 
-
-    first_label : int, optional (default=0)       
-       An integer specifying the offset in numbering nodes.
-       The n new integer labels are numbered first_label, ..., n+first_label.
-
-    ordering : string
-        "default" : inherit node ordering from G.nodes() 
-        "sorted"  : inherit node ordering from sorted(G.nodes())
-        "increasing degree" : nodes are sorted by increasing degree
-        "decreasing degree" : nodes are sorted by decreasing degree
-
-    discard_old_labels : bool, optional (default=True)
-       if True (default) discard old labels
-       if False, create a dict self.node_labels that maps new
-       labels to old labels
-    """
-#    This function strips information attached to the nodes and/or
-#    edges of a graph, and returns a graph with appropriate integer
-#    labels. One can view this as a re-labeling of the nodes. Be
-#    warned that the term "labeled graph" has a loaded meaning
-#    in graph theory. The fundamental issue is whether the names
-#    (labels) of the nodes (and edges) matter in deciding when two
-#    graphs are the same. For example, in problems of graph enumeration
-#    there is a distinct difference in techniques required when
-#    counting labeled vs. unlabeled graphs.
-
-#    When implementing graph
-#    algorithms it is often convenient to strip off the original node
-#    and edge information and appropriately relabel the n nodes with
-#    the integer values 1,..,n. This is the purpose of this function,
-#    and it provides the option (see discard_old_labels variable) to either
-#    preserve the original labels in separate dicts (these are not
-#    returned but made an attribute of the new graph.
-
-    N=G.number_of_nodes()+first_label
-    if ordering=="default":
-        mapping=dict(zip(G.nodes(),range(first_label,N)))
-    elif ordering=="sorted":
-        nlist=G.nodes()
-        nlist.sort()
-        mapping=dict(zip(nlist,range(first_label,N)))
-    elif ordering=="increasing degree":
-        dv_pairs=[(d,n) for (n,d) in G.degree_iter()]
-        dv_pairs.sort() # in-place sort from lowest to highest degree
-        mapping=dict(zip([n for d,n in dv_pairs],range(first_label,N)))
-    elif ordering=="decreasing degree":
-        dv_pairs=[(d,n) for (n,d) in G.degree_iter()]
-        dv_pairs.sort() # in-place sort from lowest to highest degree
-        dv_pairs.reverse()
-        mapping=dict(zip([n for d,n in dv_pairs],range(first_label,N)))
-    else:
-        raise nx.NetworkXError(\
-            "unknown value of node ordering variable: ordering")
-
-    H=relabel_nodes(G,mapping)
-
-    H.name="("+G.name+")_with_int_labels"
-    if not discard_old_labels:
-        H.node_labels=mapping
-    return H
 
 
 
@@ -580,7 +432,8 @@ def from_edgelist(edgelist,create_using=None):
     G.add_edges_from(edgelist)
     return G                         
 
-def to_numpy_matrix(G,nodelist=None,dtype=None,order=None,multigraph_weight=sum):
+def to_numpy_matrix(G, nodelist=None, dtype=None, order=None,
+                    multigraph_weight=sum, weight='weight'):
     """Return the graph adjacency matrix as a NumPy matrix.
 
     Parameters
@@ -607,6 +460,9 @@ def to_numpy_matrix(G,nodelist=None,dtype=None,order=None,multigraph_weight=sum)
         An operator that determines how weights in multigraphs are handled.
         The default is to sum the weights of the multiple edges.
 
+    weight: string, optional       
+       Edge data key corresponding to the edge weight.
+
     Returns
     -------
     M : NumPy matrix
@@ -618,8 +474,8 @@ def to_numpy_matrix(G,nodelist=None,dtype=None,order=None,multigraph_weight=sum)
 
     Notes
     -----
-    The matrix entries are assigned with 'weight' edge attribute. When
-    an edge does not have the 'weight' attribute, the value of the entry is 1.
+    The matrix entries are assigned with weight edge attribute. When
+    an edge does not have the weight attribute, the value of the entry is 1.
     For multiple edges, the values of the entries are the sums of the edge
     attributes for each edge.
 
@@ -656,28 +512,39 @@ def to_numpy_matrix(G,nodelist=None,dtype=None,order=None,multigraph_weight=sum)
     nlen=len(nodelist)
     undirected = not G.is_directed()
     index=dict(zip(nodelist,range(nlen)))
-    # array of nan' to start with, any leftover nans will be converted to 0
-    # nans are used so we can use sum, min, max for multigraphs
-    M = np.zeros((nlen,nlen), dtype=dtype, order=order)+np.nan
-    # use numpy nan-aware operations
-    operator={sum:np.nansum, min:np.nanmin, max:np.nanmax}
-    try:
-        op=operator[multigraph_weight]
-    except:
-        raise ValueError('multigraph_weight must be sum, min, or max')
 
-    for u,v,attrs in G.edges_iter(data=True):
-        if (u in nodeset) and (v in nodeset):
-            i,j = index[u],index[v]
-            weight = attrs.get('weight', 1)
-            M[i,j] = op([weight,M[i,j]]) 
-            if undirected:
-                M[j,i] = M[i,j]
+    if G.is_multigraph():
+        # Handle MultiGraphs and MultiDiGraphs
+        # array of nan' to start with, any leftover nans will be converted to 0
+        # nans are used so we can use sum, min, max for multigraphs
+        M = np.zeros((nlen,nlen), dtype=dtype, order=order)+np.nan
+        # use numpy nan-aware operations
+        operator={sum:np.nansum, min:np.nanmin, max:np.nanmax}
+        try:
+            op=operator[multigraph_weight]
+        except:
+            raise ValueError('multigraph_weight must be sum, min, or max')
 
-    # convert any nans to zeros
-    M = np.asmatrix(np.nan_to_num(M))
+        for u,v,attrs in G.edges_iter(data=True):
+            if (u in nodeset) and (v in nodeset):
+                i,j = index[u],index[v]
+                e_weight = attrs.get(weight, 1)
+                M[i,j] = op([e_weight,M[i,j]]) 
+                if undirected:
+                    M[j,i] = M[i,j]
+        # convert any nans to zeros
+        M = np.asmatrix(np.nan_to_num(M))
+    else:
+        # Graph or DiGraph, this is much faster than above 
+        M = np.zeros((nlen,nlen), dtype=dtype, order=order)
+        for u,nbrdict in G.adjacency_iter():
+            for v,d in nbrdict.items():
+                try:
+                    M[index[u],index[v]]=d.get(weight,1)
+                except KeyError:
+                    pass
+        M = np.asmatrix(M)
     return M
-
 
 
 def from_numpy_matrix(A,create_using=None):
